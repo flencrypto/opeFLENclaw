@@ -1,0 +1,221 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (e.g. 2026.2.27). Defaults to package.json version."
+        required: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  # Node.js Windows portable version bundled in the Windows installer.
+  # Keep in sync with the engines.node requirement in package.json (>=22.12.0).
+  NODE_WIN_VERSION: "22.14.0"
+
+jobs:
+  # ----------------------------------------------------------------
+  # Android — production-signed release APK
+  # ----------------------------------------------------------------
+  android-release:
+    name: Android Release APK
+    runs-on: blacksmith-16vcpu-ubuntu-2404
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Keep in sync with ci.yml — sdkmanager crashes on JDK 21.
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: false
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+
+      - name: Build release APK
+        working-directory: apps/android
+        env:
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon :app:assembleRelease
+
+      - name: Locate APK
+        id: apk
+        working-directory: apps/android
+        run: |
+          APK_PATH="$(find app/build/outputs/apk/release -name '*.apk' | head -1)"
+          echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$APK_PATH")" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: apps/android/${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      - name: Attach APK to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apps/android/${{ steps.apk.outputs.path }}
+
+  # ----------------------------------------------------------------
+  # Windows — production installer (.exe)
+  # ----------------------------------------------------------------
+  windows-release:
+    name: Windows Installer (.exe)
+    runs-on: blacksmith-16vcpu-windows-2025
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.x
+          check-latest: true
+
+      - name: Setup pnpm
+        uses: ./.github/actions/setup-pnpm-store-cache
+        with:
+          pnpm-version: "10.23.0"
+          cache-key-suffix: "node22"
+
+      - name: Install dependencies
+        env:
+          CI: true
+        run: pnpm install --frozen-lockfile
+
+      - name: Build dist
+        run: pnpm build
+
+      - name: Resolve version
+        id: ver
+        run: |
+          ver="${{ github.event.inputs.version }}"
+          if [ -z "$ver" ]; then
+            ver="$(node -p "require('./package.json').version")"
+          fi
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Download Node.js portable (Windows x64)
+        shell: pwsh
+        run: |
+          $version = "${{ env.NODE_WIN_VERSION }}"
+          $url = "https://nodejs.org/dist/v${version}/node-v${version}-win-x64.zip"
+          $dest = "staging\node-zip\node.zip"
+          New-Item -ItemType Directory -Force -Path "staging\node-zip" | Out-Null
+          Invoke-WebRequest -Uri $url -OutFile $dest
+          Expand-Archive -Path $dest -DestinationPath "staging\node-zip\extracted" -Force
+          # Flatten the versioned subdirectory to staging\node
+          $inner = Get-ChildItem "staging\node-zip\extracted" | Select-Object -First 1
+          Move-Item $inner.FullName "staging\node"
+
+      - name: Stage application files
+        run: |
+          mkdir -p staging/app
+
+          # Core files required at runtime
+          cp openclaw.mjs staging/app/
+          cp -r dist/      staging/app/dist/
+          cp -r assets/    staging/app/assets/
+          cp LICENSE       staging/app/
+
+          # Skills ship in the npm package; extensions are workspace packages.
+          # Both directories are optional — skip cleanly if absent.
+          if [ -d skills ]; then
+            cp -r skills/ staging/app/skills/
+          else
+            echo "skills/ not found — skipping"
+          fi
+          if [ -d extensions ]; then
+            cp -r extensions/ staging/app/extensions/
+          else
+            echo "extensions/ not found — skipping"
+          fi
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis --no-progress -y
+
+      - name: Create installer icon (fallback)
+        shell: pwsh
+        run: |
+          # Use a pre-existing .ico if present; otherwise the installer uses the default NSIS icon.
+          $ico = "staging\app\assets\openclaw.ico"
+          if (-not (Test-Path $ico)) {
+            Write-Host "No .ico found at $ico — installer will use NSIS default icon."
+          }
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $ver    = "${{ steps.ver.outputs.version }}"
+          $outDir = "dist\windows"
+          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+          $outFile = "$outDir\OpenClaw-${ver}-Setup.exe"
+          makensis.exe `
+            "/DVERSION=$ver" `
+            "/DOUTFILE=$outFile" `
+            "/DSRCDIR=staging\app" `
+            "/DNODEDIR=staging\node" `
+            "scripts\windows-installer.nsi"
+          echo "installer_path=$outFile" >> $env:GITHUB_OUTPUT
+        id: nsis
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/windows/*.exe
+          if-no-files-found: error
+
+      - name: Attach installer to GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/windows/*.exe
