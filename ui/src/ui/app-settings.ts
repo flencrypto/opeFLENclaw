@@ -25,6 +25,7 @@ import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
 import { loadSessions } from "./controllers/sessions.ts";
+import { loadSetupStatus } from "./controllers/setup.ts";
 import { loadSkills } from "./controllers/skills.ts";
 import {
   inferBasePathFromPathname,
@@ -250,6 +251,9 @@ export async function refreshActiveTab(host: SettingsHost) {
     host.logsAtBottom = true;
     await loadLogs(host as unknown as OpenClawApp, { reset: true });
     scheduleLogsScroll(host as unknown as Parameters<typeof scheduleLogsScroll>[0], true);
+  }
+  if (host.tab === "setup") {
+    await loadSetupStatus(host as unknown as OpenClawApp);
   }
 }
 

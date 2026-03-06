@@ -16,6 +16,7 @@ import {
 } from "../canvas-host/a2ui.js";
 import type { CanvasHostHandler } from "../canvas-host/server.js";
 import { loadConfig } from "../config/config.js";
+import { getIntegrationStatus } from "../integrations/requirements.js";
 import type { createSubsystemLogger } from "../logging/subsystem.js";
 import { safeEqualSecret } from "../security/secret-equal.js";
 import { handleSlackHttpRequest } from "../slack/http/index.js";
@@ -525,6 +526,18 @@ export function createGatewayHttpServer(opts: {
         return;
       }
       if (await handleSlackHttpRequest(req, res)) {
+        return;
+      }
+      // GET /api/setup/status — unauthenticated integration status endpoint.
+      // Returns only integration names + configured/missing flags; no secret
+      // values are ever included. Safe to call without a gateway token so the
+      // UI can show setup guidance before the operator has authenticated.
+      if (
+        req.method === "GET" &&
+        new URL(req.url ?? "/", "http://localhost").pathname === "/api/setup/status"
+      ) {
+        const integrations = getIntegrationStatus();
+        sendJson(res, 200, { integrations });
         return;
       }
       if (handlePluginRequest) {

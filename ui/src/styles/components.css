@@ -2590,3 +2590,52 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===========================================
+   Setup / Integrations view
+   =========================================== */
+
+.setup-integration-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setup-integration-row {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  transition: border-color var(--duration-normal) var(--ease-out);
+}
+
+.setup-row--ok {
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+.setup-row--missing {
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.setup-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.setup-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-strong);
+}
+
+.setup-row-missing {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.setup-row-oauth {
+  margin-top: 4px;
+  font-size: 12px;
+}

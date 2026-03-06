@@ -55,6 +55,7 @@ import { loadLogs } from "./controllers/logs.ts";
 import { loadNodes } from "./controllers/nodes.ts";
 import { loadPresence } from "./controllers/presence.ts";
 import { deleteSessionAndRefresh, loadSessions, patchSession } from "./controllers/sessions.ts";
+import { loadSetupStatus } from "./controllers/setup.ts";
 import {
   installSkill,
   loadSkills,
@@ -78,6 +79,7 @@ import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
 import { renderOverview } from "./views/overview.ts";
 import { renderSessions } from "./views/sessions.ts";
+import { renderSetup } from "./views/setup.ts";
 import { renderSkills } from "./views/skills.ts";
 
 const AVATAR_DATA_RE = /^data:/i;
@@ -1131,6 +1133,17 @@ export function renderApp(state: AppViewState) {
                 onRefresh: () => loadLogs(state, { reset: true }),
                 onExport: (lines, label) => state.exportLogs(lines, label),
                 onScroll: (event) => state.handleLogsScroll(event),
+              })
+            : nothing
+        }
+
+        ${
+          state.tab === "setup"
+            ? renderSetup({
+                loading: state.setupLoading,
+                error: state.setupError,
+                integrations: state.setupIntegrations,
+                onRefresh: () => loadSetupStatus(state),
               })
             : nothing
         }
