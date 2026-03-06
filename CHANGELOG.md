@@ -2,6 +2,15 @@
 
 Docs: https://docs.openclaw.ai
 
+## Unreleased
+
+### Changes
+
+- Setup/Integrations: add centralized integration requirements registry (`src/integrations/requirements.ts`) listing required env vars, setup steps, and official links for every model provider, messaging channel, tool, and voice integration. Adds `getMissingEnvVars(id)` and `getIntegrationStatus()` server-side helpers.
+- Gateway/API: add `GET /api/setup/status` HTTP endpoint and `setup.status` WebSocket method that return which integrations are configured vs. missing required credentials (returns env var names only, never values — safe to call unauthenticated).
+- Web UI/Setup tab: add a "Setup" tab in the Settings group that lists every integration with configured/missing status chips, copy-pastable env var names, and direct links to setup documentation and `REQUIRED_KEYS_AND_LOGINS.txt`.
+- Docs: add `REQUIRED_KEYS_AND_LOGINS.txt` at repo root with a comprehensive credential reference (step-by-step instructions, quick-reference table, security notes) for all 30+ integrations.
+
 ## 2026.2.27
 
 ### Changes

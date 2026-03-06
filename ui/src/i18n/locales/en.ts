@@ -36,6 +36,7 @@ export const en: TranslationMap = {
     config: "Config",
     debug: "Debug",
     logs: "Logs",
+    setup: "Setup",
   },
   subtitles: {
     agents: "Manage agent workspaces, tools, and identities.",
@@ -51,6 +52,7 @@ export const en: TranslationMap = {
     config: "Edit ~/.openclaw/openclaw.json safely.",
     debug: "Gateway snapshots, events, and manual RPC calls.",
     logs: "Live tail of the gateway file logs.",
+    setup: "Required env vars and credentials per integration.",
   },
   overview: {
     access: {
@@ -119,5 +121,30 @@ export const en: TranslationMap = {
     zhTW: "繁體中文 (Traditional Chinese)",
     ptBR: "Português (Brazilian Portuguese)",
     de: "Deutsch (German)",
+  },
+  setup: {
+    title: "Integration Setup",
+    subtitle: "Which integrations are configured and what credentials each one needs.",
+    status: {
+      configured: "Configured",
+      missing: "Missing",
+      oauth: "Login required",
+    },
+    stats: {
+      configured: "Configured",
+      missing: "Needs setup",
+    },
+    missing: {
+      label: "Missing env vars:",
+    },
+    oauth: {
+      hint: "Requires OAuth or browser login (run the setup wizard or channel add command).",
+    },
+    hint: {
+      envFile:
+        "Add missing variables to your gateway environment (e.g. ~/.openclaw/.env) and restart the gateway.",
+      docs: "Docs: env configuration",
+      keyRef: "Full key reference (REQUIRED_KEYS_AND_LOGINS.txt)",
+    },
   },
 };

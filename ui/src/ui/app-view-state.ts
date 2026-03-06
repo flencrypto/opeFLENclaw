@@ -245,6 +245,9 @@ export type AppViewState = {
   debugCallParams: string;
   debugCallResult: string | null;
   debugCallError: string | null;
+  setupLoading: boolean;
+  setupIntegrations: import("./views/setup.ts").IntegrationStatusEntry[] | null;
+  setupError: string | null;
   logsLoading: boolean;
   logsError: string | null;
   logsFile: string | null;

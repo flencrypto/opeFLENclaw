@@ -1,0 +1,771 @@
+REQUIRED KEYS AND LOGINS — OpenClaw
+Generated: 2026-03-06
+Source of truth: src/integrations/requirements.ts
+All keys/tokens are SERVER-ONLY — never expose them client-side.
+
+================================================================================
+HOW TO CONFIGURE
+================================================================================
+
+1. Copy .env.example to ~/.openclaw/.env (or ./.env for dev runs).
+2. Fill only the sections you need.
+3. Restart the gateway after changes: openclaw gateway restart
+4. Verify with: openclaw doctor
+   or:          openclaw channels status --probe
+
+Env var load order (highest → lowest priority):
+  process env → ./.env → ~/.openclaw/.env → openclaw.json `env` block
+
+--------------------------------------------------------------------------------
+SECTION 1 — GATEWAY AUTH
+--------------------------------------------------------------------------------
+
+Feature : Gateway Authentication
+Unlocks : Secures the HTTP gateway when exposed beyond localhost (required for
+          remote access, cloud deploys, or Docker).
+
+Required env vars:
+  OPENCLAW_GATEWAY_TOKEN   Long random token clients must present to authenticate.
+                           Generate: openssl rand -hex 32
+                           (Optional when gateway is loopback-only.)
+
+Where to get it:
+  Generate locally — no external service needed.
+
+Dependent routes / commands:
+  openclaw gateway run
+  openclaw channels status --probe
+
+Server-only: token never forwarded to channel clients.
+
+--------------------------------------------------------------------------------
+SECTION 2 — MODEL PROVIDERS  (set at least ONE)
+--------------------------------------------------------------------------------
+
+OpenClaw routes agent requests to the first configured provider by default.
+You only need to configure the providers you want to use.
+
+──────────────────────────────────────────
+2a. OpenAI
+──────────────────────────────────────────
+Unlocks : GPT-4o, o3, o4-mini, TTS with OpenAI voices.
+
+Required env vars:
+  OPENAI_API_KEY    Secret key starting with "sk-".
+
+Where to get it:
+  1. Sign in at https://platform.openai.com/
+  2. Go to API Keys → Create new secret key.
+  3. Copy the key and set OPENAI_API_KEY=sk-... in ~/.openclaw/.env
+
+Official link: https://platform.openai.com/api-keys
+
+Dependent: openclaw agent --model openai/...
+           TTS (provider: openai)
+
+Server-only: key is never forwarded.
+
+──────────────────────────────────────────
+2b. Anthropic (Claude)
+──────────────────────────────────────────
+Unlocks : Claude 3.x / Claude 4 models.
+
+Required env vars (ONE of):
+  ANTHROPIC_API_KEY       API key starting with "sk-ant-".
+  ANTHROPIC_OAUTH_TOKEN   OAuth token from Claude.ai login (alternative).
+  CLAUDE_AI_SESSION_KEY   Session key from Claude.ai web session (alternative).
+
+OAuth login: YES — run `openclaw models add anthropic` to sign in via browser.
+
+Where to get it (API key path):
+  1. Sign in at https://console.anthropic.com/
+  2. Settings → API Keys → Create Key.
+  3. Set ANTHROPIC_API_KEY=sk-ant-... in ~/.openclaw/.env
+
+Where to get it (OAuth path):
+  1. Run: openclaw models add anthropic
+  2. Follow the browser prompt.
+
+Official link: https://console.anthropic.com/settings/keys
+Docs: https://docs.openclaw.ai/models/anthropic
+
+Dependent: openclaw agent --model anthropic/...
+
+Server-only: all tokens remain server-side.
+
+──────────────────────────────────────────
+2c. Google Gemini
+──────────────────────────────────────────
+Unlocks : Gemini 1.5 Pro, Gemini 2.x models.
+
+Required env vars (ONE of):
+  GEMINI_API_KEY   Google AI Studio key.
+  GOOGLE_API_KEY   Alternative name accepted by some Google SDKs.
+
+OAuth login: YES — Google Gemini CLI auth is an alternative.
+
+Where to get it (API key path):
+  1. Visit https://aistudio.google.com/app/apikey
+  2. Create API key → copy it.
+  3. Set GEMINI_API_KEY=... in ~/.openclaw/.env
+
+Where to get it (OAuth path):
+  Run: openclaw models add google-gemini-cli-auth
+
+Official link: https://aistudio.google.com/app/apikey
+Docs: https://docs.openclaw.ai/models/gemini
+
+Dependent: openclaw agent --model google/...
+
+──────────────────────────────────────────
+2d. OpenRouter
+──────────────────────────────────────────
+Unlocks : 200+ models (GPT, Claude, Llama, Mistral, …) via one key.
+
+Required env vars:
+  OPENROUTER_API_KEY   Key starting with "sk-or-".
+
+Where to get it:
+  1. Sign in at https://openrouter.ai/
+  2. Keys → Create key.
+  3. Set OPENROUTER_API_KEY=sk-or-... in ~/.openclaw/.env
+
+Official link: https://openrouter.ai/keys
+
+Dependent: openclaw agent --model openrouter/...
+
+──────────────────────────────────────────
+2e. xAI (Grok)
+──────────────────────────────────────────
+Unlocks : Grok-2, Grok-4 models.
+
+Required env vars:
+  XAI_API_KEY
+
+Where to get it:
+  1. Visit https://console.x.ai/
+  2. Create an API key.
+  3. Set XAI_API_KEY=... in ~/.openclaw/.env
+
+Official link: https://console.x.ai/
+
+──────────────────────────────────────────
+2f. GitHub Copilot
+──────────────────────────────────────────
+Unlocks : GPT-4o, Claude, and other models via your Copilot subscription.
+
+Required env vars (ONE of):
+  COPILOT_GITHUB_TOKEN   GitHub PAT with Copilot scope (ghp_...).
+  GH_TOKEN               Alternative: GitHub CLI token.
+  GITHUB_TOKEN           Alternative: GitHub Actions token.
+
+OAuth login: YES — run `openclaw models add copilot-proxy` (preferred).
+
+Where to get it:
+  OAuth path (recommended): openclaw models add copilot-proxy → follow browser.
+  PAT path: https://github.com/settings/tokens → include copilot scope.
+
+Official link: https://github.com/settings/tokens
+Docs: https://docs.openclaw.ai/models/github-copilot
+
+Server-only: OAuth tokens stored in auth-profiles, never forwarded.
+
+──────────────────────────────────────────
+2g. AWS Bedrock
+──────────────────────────────────────────
+Unlocks : Claude, Llama, Titan, and other models via Amazon Bedrock.
+
+Required env vars (key-pair OR bearer OR profile):
+  AWS_ACCESS_KEY_ID       AWS access key ID.
+  AWS_SECRET_ACCESS_KEY   AWS secret access key.
+  --- OR ---
+  AWS_BEARER_TOKEN_BEDROCK   Bearer token for Bedrock.
+  --- OR ---
+  AWS_PROFILE   Named profile from ~/.aws/credentials.
+
+Optional:
+  AWS_REGION   AWS region (e.g. us-east-1).
+
+Where to get it:
+  1. Create IAM user/role with AmazonBedrockFullAccess in AWS Console.
+  2. Enable model access in Bedrock console for your region.
+  3. Set env vars in ~/.openclaw/.env or ~/.aws/credentials.
+
+Official links:
+  https://console.aws.amazon.com/bedrock/
+  https://docs.aws.amazon.com/bedrock/latest/userguide/security-iam.html
+
+──────────────────────────────────────────
+2h. Mistral AI
+──────────────────────────────────────────
+Unlocks : Mistral 7B, Mixtral, Mistral Large models.
+
+Required env vars:
+  MISTRAL_API_KEY
+
+Where to get it:
+  1. Sign in at https://console.mistral.ai/
+  2. API Keys → Create new key.
+  3. Set MISTRAL_API_KEY=... in ~/.openclaw/.env
+
+Official link: https://console.mistral.ai/api-keys/
+
+──────────────────────────────────────────
+2i. Together AI
+──────────────────────────────────────────
+Unlocks : Open-source models (Llama, Mistral, Qwen, etc.) via Together AI.
+
+Required env vars:
+  TOGETHER_API_KEY
+
+Where to get it:
+  1. Sign in at https://api.together.xyz/
+  2. Settings → API Keys → Create.
+  3. Set TOGETHER_API_KEY=... in ~/.openclaw/.env
+
+Official link: https://api.together.xyz/settings/api-keys
+
+──────────────────────────────────────────
+2j. Hugging Face Inference
+──────────────────────────────────────────
+Unlocks : Thousands of open-source models via Hugging Face Inference API.
+
+Required env vars (ONE of):
+  HUGGINGFACE_HUB_TOKEN   Access token starting with "hf_".
+  HF_TOKEN                Alternative name.
+
+Where to get it:
+  1. Sign in at https://huggingface.co/
+  2. Settings → Access Tokens → New token.
+  3. Set HUGGINGFACE_HUB_TOKEN=hf_... in ~/.openclaw/.env
+
+Official link: https://huggingface.co/settings/tokens
+
+──────────────────────────────────────────
+2k. Additional providers (env var reference)
+──────────────────────────────────────────
+  ZAI_API_KEY / Z_AI_API_KEY     ZAI / Z.ai
+  MINIMAX_API_KEY                MiniMax (also used for minimax-cn)
+  SYNTHETIC_API_KEY              Synthetic API
+  VENICE_API_KEY                 Venice AI
+  AI_GATEWAY_API_KEY             Vercel AI Gateway
+  MOONSHOT_API_KEY               Moonshot AI (Kimi)
+  KIMI_API_KEY / KIMICODE_API_KEY   Kimi Coding
+  KILOCODE_API_KEY               KiloCode
+  OPENCODE_API_KEY               OpenCode
+  VOLCANO_ENGINE_API_KEY         VolcEngine (Doubao)
+  BYTEPLUS_API_KEY               BytePlus
+  XIAOMI_API_KEY                 Xiaomi AI
+  LITELLM_API_KEY                LiteLLM proxy
+  CLOUDFLARE_AI_GATEWAY_API_KEY  Cloudflare AI Gateway
+  CHUTES_CLIENT_ID               Chutes OAuth (+ CHUTES_CLIENT_SECRET)
+
+--------------------------------------------------------------------------------
+SECTION 3 — MESSAGING CHANNELS
+--------------------------------------------------------------------------------
+
+Configure ONLY the channels you want to enable.
+
+──────────────────────────────────────────
+3a. Telegram
+──────────────────────────────────────────
+Required:
+  TELEGRAM_BOT_TOKEN   Bot token from @BotFather (format: 123456:ABCDEF…).
+
+Steps:
+  1. Message @BotFather on Telegram → /newbot → follow prompts.
+  2. Copy the token shown.
+  3. Set TELEGRAM_BOT_TOKEN=<token> in ~/.openclaw/.env
+     OR run: openclaw channels add telegram
+
+Official: https://core.telegram.org/bots#how-do-i-create-a-bot
+Docs: https://docs.openclaw.ai/channels/telegram
+
+Commands: openclaw channels add telegram
+          openclaw channels status --probe
+
+──────────────────────────────────────────
+3b. Discord
+──────────────────────────────────────────
+Required:
+  DISCORD_BOT_TOKEN   Bot token from Discord Developer Portal.
+
+Steps:
+  1. https://discord.com/developers/applications → New Application.
+  2. Bot → Add Bot → Reset Token → copy token.
+  3. Enable Message Content Intent (Privileged Gateway Intents).
+  4. OAuth2 → URL Generator → invite bot to server.
+  5. Set DISCORD_BOT_TOKEN=... in ~/.openclaw/.env
+     OR run: openclaw channels add discord
+
+Official: https://discord.com/developers/applications
+Docs: https://docs.openclaw.ai/channels/discord
+
+──────────────────────────────────────────
+3c. Slack
+──────────────────────────────────────────
+Required:
+  SLACK_BOT_TOKEN    Bot OAuth token (xoxb-…).
+  SLACK_APP_TOKEN    App-level token for Socket Mode (xapp-…).
+
+Steps:
+  1. https://api.slack.com/apps → Create New App → From scratch.
+  2. OAuth & Permissions → add scopes: app_mentions:read, chat:write, etc.
+  3. Install to workspace → copy Bot User OAuth Token (xoxb-…).
+  4. App-Level Tokens → Generate with connections:write scope → copy (xapp-…).
+  5. Set both tokens in ~/.openclaw/.env
+     OR run: openclaw channels add slack
+
+Official: https://api.slack.com/apps
+Docs: https://docs.openclaw.ai/channels/slack
+
+──────────────────────────────────────────
+3d. WhatsApp
+──────────────────────────────────────────
+Required: none (QR-code OAuth login)
+OAuth login: YES
+
+Steps:
+  1. Run: openclaw channels add whatsapp
+  2. Scan the QR code with your WhatsApp-registered phone.
+  3. Session stored in ~/.openclaw/sessions/whatsapp/
+
+Recommendation: use a dedicated phone / eSIM for the bot number.
+Docs: https://docs.openclaw.ai/channels/whatsapp
+
+──────────────────────────────────────────
+3e. Signal
+──────────────────────────────────────────
+Required: none (uses signal-cli or local HTTP API — no raw API keys)
+
+Steps (signal-cli):
+  1. Install signal-cli: https://github.com/AsamK/signal-cli
+  2. Register a number: signal-cli -u +15550001234 register
+  3. Run: openclaw channels add signal
+       --signal-number +15550001234
+       --cli-path /path/to/signal-cli
+
+Steps (HTTP API / Docker):
+  1. Run the signal-cli REST API container (see github.com/bbernhard/signal-cli-rest-api).
+  2. Run: openclaw channels add signal --http-url http://localhost:8080
+
+Docs: https://docs.openclaw.ai/channels/signal
+
+──────────────────────────────────────────
+3f. Microsoft Teams
+──────────────────────────────────────────
+Required:
+  MSTEAMS_APP_ID       Azure AD App ID / Bot Framework App ID.
+  MSTEAMS_APP_PASSWORD Azure AD client secret.
+  MSTEAMS_TENANT_ID    Azure AD tenant ID.
+
+Steps:
+  1. https://portal.azure.com → Azure Bot → Create.
+  2. App Registration → Certificates & secrets → New client secret → copy.
+  3. Copy App ID from App Registration → Overview.
+  4. Copy Tenant ID.
+  5. Set all three env vars in ~/.openclaw/.env
+     OR run: openclaw channels add msteams
+
+Official: https://portal.azure.com/
+Docs: https://docs.openclaw.ai/channels/msteams
+
+──────────────────────────────────────────
+3g. Matrix
+──────────────────────────────────────────
+Required:
+  MATRIX_HOMESERVER   Full homeserver URL (e.g. https://matrix.org).
+  MATRIX_USER_ID      Matrix user ID (e.g. @botname:matrix.org).
+  MATRIX_ACCESS_TOKEN Access token (OR use MATRIX_PASSWORD below).
+
+Optional:
+  MATRIX_PASSWORD     Account password (alternative to access token).
+
+Steps:
+  1. Create a Matrix account (e.g. https://app.element.io or your own server).
+  2. In Element: Settings → Help & About → Access Token.
+  3. Set env vars in ~/.openclaw/.env
+     OR run: openclaw channels add matrix
+
+Official: https://matrix.org/
+Docs: https://docs.openclaw.ai/channels/matrix
+
+──────────────────────────────────────────
+3h. LINE
+──────────────────────────────────────────
+Required:
+  LINE_CHANNEL_ACCESS_TOKEN   Channel access token from Messaging API settings.
+
+Optional:
+  LINE_CHANNEL_SECRET         Channel secret (for webhook signature verification).
+
+Steps:
+  1. https://developers.line.biz/ → Create provider → Create Messaging API channel.
+  2. Messaging API tab → Issue channel access token (long-lived).
+  3. Set LINE_CHANNEL_ACCESS_TOKEN in ~/.openclaw/.env
+     OR run: openclaw channels add line
+
+Official: https://developers.line.biz/en/docs/messaging-api/
+Docs: https://docs.openclaw.ai/channels/line
+
+──────────────────────────────────────────
+3i. Google Chat
+──────────────────────────────────────────
+Required (ONE of):
+  GOOGLE_CHAT_SERVICE_ACCOUNT        Inline JSON of service account key (string).
+  GOOGLE_CHAT_SERVICE_ACCOUNT_FILE   Path to service account JSON key file.
+
+Steps:
+  1. https://console.cloud.google.com/ → Enable Google Chat API.
+  2. IAM & Admin → Service Accounts → Create → Chat API Bot role.
+  3. Keys → Add Key → JSON → download.
+  4. Either inline the JSON: GOOGLE_CHAT_SERVICE_ACCOUNT='{ "type": "service_account", … }'
+     OR set path: GOOGLE_CHAT_SERVICE_ACCOUNT_FILE=/path/to/key.json
+  5. Register the bot in Google Chat API config.
+
+Official: https://developers.google.com/chat/api/guides/auth/service-accounts
+Docs: https://docs.openclaw.ai/channels/googlechat
+
+──────────────────────────────────────────
+3j. Mattermost
+──────────────────────────────────────────
+Required:
+  MATTERMOST_BOT_TOKEN   Bot account access token.
+  MATTERMOST_URL         Instance URL (e.g. https://chat.example.com).
+
+Steps:
+  1. Mattermost: System Console → Integrations → Bot Accounts → Enable → Create Bot.
+  2. Copy the access token.
+  3. Set MATTERMOST_BOT_TOKEN and MATTERMOST_URL in ~/.openclaw/.env
+
+Official: https://developers.mattermost.com/integrate/reference/bot-accounts/
+Docs: https://docs.openclaw.ai/channels/mattermost
+
+──────────────────────────────────────────
+3k. Twitch
+──────────────────────────────────────────
+Required:
+  OPENCLAW_TWITCH_ACCESS_TOKEN   OAuth access token (format: oauth:…).
+
+Steps:
+  1. Register an application at https://dev.twitch.tv/console/apps.
+  2. Obtain an OAuth token (Authorization Code flow or twitch-cli).
+  3. Set OPENCLAW_TWITCH_ACCESS_TOKEN=oauth:... in ~/.openclaw/.env
+
+OAuth login: YES (Twitch requires OAuth)
+Official: https://dev.twitch.tv/docs/authentication/
+Docs: https://docs.openclaw.ai/channels/twitch
+
+──────────────────────────────────────────
+3l. Feishu / Lark
+──────────────────────────────────────────
+Required:
+  FEISHU_APP_ID       Application App ID.
+  FEISHU_APP_SECRET   Application App Secret.
+
+Steps:
+  1. https://open.feishu.cn/ → Create Application.
+  2. Credentials & Basic Info → copy App ID and App Secret.
+  3. Set FEISHU_APP_ID and FEISHU_APP_SECRET in ~/.openclaw/.env
+
+Official: https://open.feishu.cn/document/
+Docs: https://docs.openclaw.ai/channels/feishu
+
+──────────────────────────────────────────
+3m. Zalo
+──────────────────────────────────────────
+Required:
+  ZALO_BOT_TOKEN   Official Account access token.
+
+Steps:
+  1. https://developers.zalo.me/ → Register Official Account.
+  2. Create app → obtain access token.
+  3. Set ZALO_BOT_TOKEN=... in ~/.openclaw/.env
+
+Official: https://developers.zalo.me/
+Docs: https://docs.openclaw.ai/channels/zalo
+
+──────────────────────────────────────────
+3n. IRC
+──────────────────────────────────────────
+Required:
+  IRC_HOST   IRC server hostname (e.g. irc.libera.chat).
+  IRC_NICK   Bot nickname.
+
+Optional:
+  IRC_PORT                    Port (default 6697 TLS, 6667 plain).
+  IRC_USERNAME                IRC ident / username.
+  IRC_REALNAME                WHOIS real name.
+  IRC_PASSWORD                Server password (if any).
+  IRC_NICKSERV_PASSWORD       NickServ identification password.
+  IRC_NICKSERV_REGISTER_EMAIL NickServ registration email.
+  IRC_CHANNELS                Comma-separated channels to join on startup.
+  IRC_TLS                     Set to '1' or 'true' to enable TLS.
+
+Steps:
+  1. Choose an IRC network and register a nick (e.g. /msg NickServ REGISTER).
+  2. Set IRC_HOST and IRC_NICK (and optionally other vars) in ~/.openclaw/.env.
+
+Docs: https://docs.openclaw.ai/channels/irc
+
+──────────────────────────────────────────
+3o. Synology Chat
+──────────────────────────────────────────
+Required:
+  SYNOLOGY_CHAT_TOKEN        Incoming bot token from Synology Chat integration.
+  SYNOLOGY_CHAT_INCOMING_URL Synology Chat incoming webhook URL.
+  SYNOLOGY_NAS_HOST          Hostname or IP of your Synology NAS.
+
+Optional:
+  SYNOLOGY_ALLOWED_USER_IDS  Comma-separated user IDs to allow.
+
+Steps:
+  1. Synology Chat → Integration → Incoming Webhooks → Create.
+  2. Copy token and webhook URL.
+  3. Set env vars in ~/.openclaw/.env
+
+Official: https://kb.synology.com/en-us/DSM/help/Chat/chat_integration
+Docs: https://docs.openclaw.ai/channels/synology-chat
+
+──────────────────────────────────────────
+3p. Nextcloud Talk
+──────────────────────────────────────────
+Required:
+  NEXTCLOUD_TALK_BOT_SECRET   Bot secret from Nextcloud Talk admin.
+
+Steps:
+  1. Nextcloud: Admin → Talk → Bots → Register bot.
+  2. Copy the bot secret.
+  3. Set NEXTCLOUD_TALK_BOT_SECRET=... in ~/.openclaw/.env
+
+Official: https://nextcloud-talk.readthedocs.io/en/latest/bots/
+Docs: https://docs.openclaw.ai/channels/nextcloud-talk
+
+--------------------------------------------------------------------------------
+SECTION 4 — TOOLS (optional search / scrape capabilities)
+--------------------------------------------------------------------------------
+
+──────────────────────────────────────────
+4a. Brave Search
+──────────────────────────────────────────
+Unlocks : Web search in agent tools (provider: brave).
+
+Required:
+  BRAVE_API_KEY
+
+Steps:
+  1. https://api.search.brave.com/ → Sign up → choose a plan (free tier available).
+  2. Dashboard → API Keys → copy key.
+  3. Set BRAVE_API_KEY=... in ~/.openclaw/.env
+     OR set tools.web.search.brave.apiKey in openclaw.json.
+
+Official: https://api.search.brave.com/
+
+──────────────────────────────────────────
+4b. Perplexity Search
+──────────────────────────────────────────
+Unlocks : AI-powered web search (provider: perplexity).
+
+Required (ONE of):
+  PERPLEXITY_API_KEY   Perplexity key (pplx-…).
+  OPENROUTER_API_KEY   Use Perplexity models via OpenRouter.
+
+Steps:
+  1. https://www.perplexity.ai/settings/api → Generate API key.
+  2. Set PERPLEXITY_API_KEY=pplx-... in ~/.openclaw/.env
+
+Official: https://www.perplexity.ai/settings/api
+
+──────────────────────────────────────────
+4c. Firecrawl
+──────────────────────────────────────────
+Unlocks : Structured web fetch / scrape in agent tools.
+
+Required:
+  FIRECRAWL_API_KEY
+
+Steps:
+  1. https://www.firecrawl.dev/ → Sign up → Dashboard → API Keys → Create.
+  2. Set FIRECRAWL_API_KEY=... in ~/.openclaw/.env
+     OR set tools.web.fetch.firecrawl.apiKey in openclaw.json.
+
+Official: https://www.firecrawl.dev/
+
+--------------------------------------------------------------------------------
+SECTION 5 — VOICE / MEDIA (optional TTS / STT / phone calls)
+--------------------------------------------------------------------------------
+
+──────────────────────────────────────────
+5a. ElevenLabs TTS
+──────────────────────────────────────────
+Unlocks : High-quality text-to-speech.
+
+Required (ONE of):
+  ELEVENLABS_API_KEY
+  XI_API_KEY            Legacy alias.
+
+Steps:
+  1. https://elevenlabs.io/ → Sign up → Profile → API Keys → Create.
+  2. Set ELEVENLABS_API_KEY=... in ~/.openclaw/.env
+     OR configure tts.elevenlabs.apiKey in openclaw.json.
+
+Official: https://elevenlabs.io/
+Docs: https://docs.openclaw.ai/voice
+
+──────────────────────────────────────────
+5b. Deepgram STT
+──────────────────────────────────────────
+Unlocks : Speech-to-text transcription.
+
+Required:
+  DEEPGRAM_API_KEY
+
+Steps:
+  1. https://deepgram.com/ → Sign up → API Keys → Create.
+  2. Set DEEPGRAM_API_KEY=... in ~/.openclaw/.env
+
+Official: https://deepgram.com/
+Docs: https://docs.openclaw.ai/voice
+
+──────────────────────────────────────────
+5c. Twilio Voice Calls
+──────────────────────────────────────────
+Unlocks : Inbound/outbound PSTN phone calls via Twilio (voice-call extension).
+
+Required:
+  TWILIO_ACCOUNT_SID
+  TWILIO_AUTH_TOKEN
+
+Optional:
+  NGROK_AUTHTOKEN   For local webhook tunneling.
+  NGROK_DOMAIN      Custom ngrok domain.
+
+Steps:
+  1. https://www.twilio.com/ → Sign up → Console Dashboard.
+  2. Copy Account SID and Auth Token.
+  3. Set env vars in ~/.openclaw/.env
+
+Official: https://www.twilio.com/console
+Docs: https://docs.openclaw.ai/voice
+
+Server-only: auth token never forwarded.
+
+──────────────────────────────────────────
+5d. Telnyx Voice Calls
+──────────────────────────────────────────
+Unlocks : Inbound/outbound PSTN phone calls via Telnyx (voice-call extension).
+
+Required:
+  TELNYX_API_KEY         V2 API key.
+  TELNYX_CONNECTION_ID   Call Control Application connection ID.
+
+Optional:
+  TELNYX_PUBLIC_KEY   Webhook signature verification public key.
+
+Steps:
+  1. https://telnyx.com/ → Sign up → API Keys → Create V2 key.
+  2. Call Control → Create Application → copy connection ID.
+  3. Set TELNYX_API_KEY and TELNYX_CONNECTION_ID in ~/.openclaw/.env
+
+Official: https://portal.telnyx.com/#/app/api-keys
+Docs: https://docs.openclaw.ai/voice
+
+──────────────────────────────────────────
+5e. Plivo Voice Calls
+──────────────────────────────────────────
+Unlocks : Inbound/outbound PSTN phone calls via Plivo (voice-call extension).
+
+Required:
+  PLIVO_AUTH_ID
+  PLIVO_AUTH_TOKEN
+
+Steps:
+  1. https://www.plivo.com/ → Sign up → Dashboard.
+  2. Copy Auth ID and Auth Token.
+  3. Set PLIVO_AUTH_ID and PLIVO_AUTH_TOKEN in ~/.openclaw/.env
+
+Official: https://console.plivo.com/dashboard/
+Docs: https://docs.openclaw.ai/voice
+
+================================================================================
+QUICK REFERENCE — ALL ENV VARS AT A GLANCE
+================================================================================
+
+Category          | Env Var                          | Required | Notes
+------------------+----------------------------------+----------+----------------------
+Gateway           | OPENCLAW_GATEWAY_TOKEN           | rec.     | non-loopback only
+------------------+----------------------------------+----------+----------------------
+Model: OpenAI     | OPENAI_API_KEY                   | one of   | sk-...
+Model: Anthropic  | ANTHROPIC_API_KEY                | one of   | sk-ant-...
+Model: Anthropic  | ANTHROPIC_OAUTH_TOKEN            | alt.     | OAuth alternative
+Model: Gemini     | GEMINI_API_KEY                   | one of   |
+Model: OpenRouter | OPENROUTER_API_KEY               | one of   | sk-or-...
+Model: xAI        | XAI_API_KEY                      | if used  |
+Model: Copilot    | COPILOT_GITHUB_TOKEN             | if used  | ghp_...
+Model: AWS        | AWS_ACCESS_KEY_ID                | if used  |
+Model: AWS        | AWS_SECRET_ACCESS_KEY            | if used  |
+Model: Mistral    | MISTRAL_API_KEY                  | if used  |
+Model: Together   | TOGETHER_API_KEY                 | if used  |
+Model: HuggingFace| HUGGINGFACE_HUB_TOKEN            | if used  | hf_...
+------------------+----------------------------------+----------+----------------------
+Chan: Telegram    | TELEGRAM_BOT_TOKEN               | required | 123456:ABC...
+Chan: Discord     | DISCORD_BOT_TOKEN                | required |
+Chan: Slack       | SLACK_BOT_TOKEN                  | required | xoxb-...
+Chan: Slack       | SLACK_APP_TOKEN                  | required | xapp-...
+Chan: WhatsApp    | — (QR login)                     | required | no env var
+Chan: Signal      | — (signal-cli)                   | required | no env var
+Chan: Teams       | MSTEAMS_APP_ID                   | required |
+Chan: Teams       | MSTEAMS_APP_PASSWORD             | required |
+Chan: Teams       | MSTEAMS_TENANT_ID                | required |
+Chan: Matrix      | MATRIX_HOMESERVER                | required |
+Chan: Matrix      | MATRIX_USER_ID                   | required |
+Chan: Matrix      | MATRIX_ACCESS_TOKEN              | required |
+Chan: LINE        | LINE_CHANNEL_ACCESS_TOKEN        | required |
+Chan: Google Chat | GOOGLE_CHAT_SERVICE_ACCOUNT      | required | JSON string
+Chan: Mattermost  | MATTERMOST_BOT_TOKEN             | required |
+Chan: Mattermost  | MATTERMOST_URL                   | required |
+Chan: Twitch      | OPENCLAW_TWITCH_ACCESS_TOKEN     | required | oauth:...
+Chan: Feishu      | FEISHU_APP_ID                    | required |
+Chan: Feishu      | FEISHU_APP_SECRET                | required |
+Chan: Zalo        | ZALO_BOT_TOKEN                   | required |
+Chan: IRC         | IRC_HOST                         | required |
+Chan: IRC         | IRC_NICK                         | required |
+Chan: Synology    | SYNOLOGY_CHAT_TOKEN              | required |
+Chan: Synology    | SYNOLOGY_CHAT_INCOMING_URL       | required |
+Chan: Synology    | SYNOLOGY_NAS_HOST                | required |
+Chan: Nextcloud   | NEXTCLOUD_TALK_BOT_SECRET        | required |
+------------------+----------------------------------+----------+----------------------
+Tool: Brave       | BRAVE_API_KEY                    | if used  |
+Tool: Perplexity  | PERPLEXITY_API_KEY               | if used  | pplx-...
+Tool: Firecrawl   | FIRECRAWL_API_KEY                | if used  |
+------------------+----------------------------------+----------+----------------------
+Voice: ElevenLabs | ELEVENLABS_API_KEY               | if used  |
+Voice: Deepgram   | DEEPGRAM_API_KEY                 | if used  |
+Voice: Twilio     | TWILIO_ACCOUNT_SID               | if used  |
+Voice: Twilio     | TWILIO_AUTH_TOKEN                | if used  |
+Voice: Telnyx     | TELNYX_API_KEY                   | if used  |
+Voice: Telnyx     | TELNYX_CONNECTION_ID             | if used  |
+Voice: Plivo      | PLIVO_AUTH_ID                    | if used  |
+Voice: Plivo      | PLIVO_AUTH_TOKEN                 | if used  |
+
+================================================================================
+SECURITY NOTES
+================================================================================
+
+1. All keys/tokens are SERVER-ONLY. They are loaded by the gateway process and
+   never forwarded to channel messages or exposed to users.
+
+2. Store keys in ~/.openclaw/.env (not in the repo, not in openclaw.json unless
+   you fully trust the config file location).
+
+3. Rotate any key that may have been exposed; never commit real keys to git.
+
+4. The gateway's security audit (openclaw doctor) reports missing or weak
+   OPENCLAW_GATEWAY_TOKEN values.
+
+5. For OAuth integrations, tokens are stored in auth-profiles under
+   ~/.openclaw/ — protect that directory (chmod 700).
+
+================================================================================
+END OF FILE
+================================================================================

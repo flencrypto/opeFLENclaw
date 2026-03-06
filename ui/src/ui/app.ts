@@ -353,6 +353,10 @@ export class OpenClawApp extends LitElement {
   @state() debugCallResult: string | null = null;
   @state() debugCallError: string | null = null;
 
+  @state() setupLoading = false;
+  @state() setupIntegrations: import("./views/setup.ts").IntegrationStatusEntry[] | null = null;
+  @state() setupError: string | null = null;
+
   @state() logsLoading = false;
   @state() logsError: string | null = null;
   @state() logsFile: string | null = null;
