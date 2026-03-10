@@ -28,11 +28,37 @@ android {
     }
   }
 
+  // Release signing: reads credentials from environment variables injected by CI.
+  // Set ANDROID_KEYSTORE_PATH, ANDROID_STORE_PASSWORD, ANDROID_KEY_ALIAS, and
+  // ANDROID_KEY_PASSWORD in the environment (or via a local keystore.properties file)
+  // before running assembleRelease.
+  val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+  val storePassword = System.getenv("ANDROID_STORE_PASSWORD")
+  val keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+  val keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+
+  if (keystorePath != null && storePassword != null && keyAlias != null && keyPassword != null) {
+    signingConfigs {
+      create("release") {
+        storeFile = file(keystorePath)
+        this.storePassword = storePassword
+        this.keyAlias = keyAlias
+        this.keyPassword = keyPassword
+      }
+    }
+  }
+
   buildTypes {
     release {
       isMinifyEnabled = true
       isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+      // Use the release signing config when credentials are available; otherwise
+      // the build will fail if signing is required (safe default for CI).
+      val releaseSigning = signingConfigs.findByName("release")
+      if (releaseSigning != null) {
+        signingConfig = releaseSigning
+      }
     }
     debug {
       isMinifyEnabled = false

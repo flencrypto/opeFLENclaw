@@ -1,0 +1,454 @@
+REQUIRED KEYS AND LOGINS — OpenClaw
+Generated: 2026-03-06
+Repository: https://github.com/openclaw/openclaw
+
+This file documents every API key, token, OAuth credential, and external login
+that OpenClaw can use, grouped by category. Only the items you actually plan to
+use need to be configured. Everything is optional except "at least one AI model
+provider" for the gateway to function.
+
+Copy env vars into:
+  - .env (local dev, repo-relative)
+  - ~/.openclaw/.env (daemon / launchd / systemd installs)
+  - OR directly into ~/.openclaw/openclaw.json under the relevant config key
+
+See .env.example in the repo root for a copy-paste template.
+
+===============================================================================
+SECTION 1 — GATEWAY AUTH (Recommended for any non-loopback deployment)
+===============================================================================
+
+If the gateway binds to 0.0.0.0 or any interface reachable over a network,
+set at least one of the following. Without auth, any local process can connect.
+
+  OPENCLAW_GATEWAY_TOKEN=<random-hex-string>
+    Purpose : Bearer-token auth for the gateway WebSocket/HTTP API.
+    Generate: openssl rand -hex 32
+    Used by : All clients connecting to the gateway (web UI, mobile apps, CLI).
+
+  OPENCLAW_GATEWAY_PASSWORD=<strong-password>
+    Purpose : Alternative to OPENCLAW_GATEWAY_TOKEN (use one or the other).
+    Note    : Token auth is preferred; password auth is provided for convenience.
+
+Optional path overrides:
+  OPENCLAW_STATE_DIR=~/.openclaw
+  OPENCLAW_CONFIG_PATH=~/.openclaw/openclaw.json
+  OPENCLAW_HOME=~
+
+===============================================================================
+SECTION 2 — AI MODEL PROVIDERS (Set at least one to use the gateway)
+===============================================================================
+
+OpenClaw routes requests to whichever providers are configured. You only need
+one for basic operation; configure more for fallback / multi-provider setups.
+
+--- OpenAI ---
+  OPENAI_API_KEY=sk-...
+    Where : https://platform.openai.com/api-keys
+    Unlocks: GPT-4o, o1, o3, voice/Realtime API, image generation (DALL-E)
+    Multi-key (optional, round-robin/fallback):
+      OPENAI_API_KEY_1=sk-...
+      OPENAI_API_KEYS=sk-key1,sk-key2
+
+--- Anthropic ---
+  ANTHROPIC_API_KEY=sk-ant-...
+    Where   : https://console.anthropic.com/keys
+    Unlocks : Claude 3.5/3.7 (opus, sonnet, haiku), extended thinking
+    OAuth alternative (for Claude Max subscribers):
+      ANTHROPIC_OAUTH_TOKEN=<oauth-token>  (set via `openclaw onboard`)
+    Multi-key (optional):
+      ANTHROPIC_API_KEY_1=sk-ant-...
+      ANTHROPIC_API_KEYS=sk-ant-key1,sk-ant-key2
+
+--- Google Gemini ---
+  GEMINI_API_KEY=...
+    Where   : https://aistudio.google.com/apikey
+    Also    : GOOGLE_API_KEY=... (alias; GEMINI_API_KEY takes precedence)
+    Unlocks : Gemini 2.0/2.5 (Flash, Pro), multimodal, Google Search grounding
+    Multi-key (optional):
+      GEMINI_API_KEY_1=...
+      GEMINI_API_KEYS=key1,key2
+
+--- OpenRouter ---
+  OPENROUTER_API_KEY=sk-or-...
+    Where  : https://openrouter.ai/keys
+    Unlocks: 100+ models through a single key (GPT, Claude, Gemini, Llama, etc.)
+
+--- Mistral ---
+  MISTRAL_API_KEY=...
+    Where  : https://console.mistral.ai/keys
+    Unlocks: Mistral Large/Small/Nemo models
+
+--- xAI (Grok) ---
+  XAI_API_KEY=...
+    Where  : https://x.ai/api
+    Unlocks: Grok-3, Grok-2 models
+
+--- Groq ---
+  GROQ_API_KEY=gsk_...
+    Where  : https://console.groq.com/keys
+    Unlocks: Fast inference (Llama, Mistral, Gemma) via Groq LPU
+
+--- Together AI ---
+  TOGETHER_API_KEY=...
+    Where  : https://api.together.xyz/settings/api-keys
+    Unlocks: Open-source models hosted on Together (Llama, Qwen, etc.)
+
+--- HuggingFace ---
+  HUGGINGFACE_HUB_TOKEN=hf_...
+    Alternative: HF_TOKEN=hf_...
+    Where  : https://huggingface.co/settings/tokens
+    Unlocks: HuggingFace Inference API, gated models
+
+--- Moonshot (Kimi) ---
+  MOONSHOT_API_KEY=...
+    Alternative: KIMI_API_KEY=... (coding-specific model)
+    Where  : https://platform.moonshot.cn/console/api-keys
+    Unlocks: Kimi long-context models
+
+--- Alibaba Qwen ---
+  QWEN_API_KEY=...
+    Where  : https://dashscope.aliyun.com/
+    Unlocks: Qwen-Max, QwQ reasoning model
+
+--- MiniMax ---
+  MINIMAX_API_KEY=...
+    Where  : https://www.minimax.chat/
+    Unlocks: MiniMax text/audio models
+    OAuth (optional): MINIMAX_OAUTH_TOKEN=...
+
+--- Venice AI ---
+  VENICE_API_KEY=...
+    Where  : https://venice.ai/
+    Unlocks: Privacy-focused model hosting
+
+--- ZAI ---
+  ZAI_API_KEY=...
+    Alternative: Z_AI_API_KEY=...
+    Where  : https://zai.ai/
+    Unlocks: ZAI aggregate model provider
+
+--- Xiaomi ---
+  XIAOMI_API_KEY=...
+    Where  : Xiaomi developer console
+    Unlocks: Xiaomi AI models
+
+--- KiloCode ---
+  KILOCODE_API_KEY=...
+    Where  : https://kilocode.ai/
+    Unlocks: KiloCode coding models
+
+--- Cloudflare AI Gateway ---
+  CLOUDFLARE_AI_GATEWAY_API_KEY=...
+    Where  : https://dash.cloudflare.com/ → Workers AI → AI Gateway
+    Unlocks: Routes AI requests through Cloudflare's AI Gateway (caching, logging)
+
+--- LiteLLM ---
+  LITELLM_API_KEY=...
+    Where  : Self-hosted LiteLLM proxy (https://docs.litellm.ai/)
+    Unlocks: Any model behind a LiteLLM server
+
+--- Vercel AI Gateway ---
+  AI_GATEWAY_API_KEY=...
+    Where  : https://vercel.com/docs/ai
+    Unlocks: Multi-model routing via Vercel's AI SDK gateway
+
+--- OpenCode ---
+  OPENCODE_API_KEY=...
+    Alternative: OPENCODE_ZEN_API_KEY=...
+    Where  : https://opencode.ai/
+    Unlocks: OpenCode models
+
+--- BytePlus (Volcengine) ---
+  BYTEPLUS_API_KEY=...
+  VOLCANO_ENGINE_API_KEY=...
+    Where  : https://www.byteplus.com/
+    Unlocks: ByteDance/Volcengine AI models
+
+--- Chutes.ai (OAuth) ---
+  CHUTES_CLIENT_ID=...
+  CHUTES_CLIENT_SECRET=...  (optional — omit for public OAuth flow)
+    Set via: `openclaw onboard` (interactive OAuth wizard)
+    Where  : https://chutes.ai/
+    Unlocks: Chutes decentralized AI models
+
+--- Synthetic / Custom ---
+  SYNTHETIC_API_KEY=...
+    Unlocks: Synthetic/mock provider for testing
+
+--- Qianfan (Baidu) ---
+  QIANFAN_API_KEY=...
+    Where  : https://qianfan.cloud.baidu.com/
+    Unlocks: Baidu ERNIE models
+
+--- AWS Bedrock ---
+  (No single env var — uses AWS SDK default credential chain)
+  Required: AWS credentials via ~/.aws/credentials, IAM roles, or:
+    AWS_ACCESS_KEY_ID=...
+    AWS_SECRET_ACCESS_KEY=...
+    AWS_REGION=us-east-1
+  Where  : https://aws.amazon.com/bedrock/
+  Unlocks: Claude via Bedrock, Llama, Mistral, Titan
+
+--- GitHub Copilot ---
+  (OAuth-based — set via `openclaw onboard`)
+  Requires: GitHub account with active Copilot subscription
+  Where   : https://github.com/settings/copilot
+  Unlocks : GitHub Copilot models (GPT-4o, Claude via Copilot API)
+
+--- Ollama (local, no key needed) ---
+  No credentials required. Self-hosted.
+  Install : https://ollama.ai
+  Unlocks : Local LLM models (Llama, Mistral, Phi, Qwen, etc.) — fully offline
+
+===============================================================================
+SECTION 3 — MESSAGING CHANNELS
+===============================================================================
+
+Configure only the channels you intend to run. Each channel can be configured
+via env vars (single default account) or via openclaw.json (multiple accounts).
+
+--- Telegram ---
+  TELEGRAM_BOT_TOKEN=123456:ABCDEF...
+    Where  : Message @BotFather on Telegram → /newbot
+    Unlocks: Telegram bot (DMs, groups, inline)
+    Docs   : https://docs.openclaw.ai/channels/telegram
+
+--- Discord ---
+  DISCORD_BOT_TOKEN=...
+    Where  : https://discord.com/developers/applications → Bot → Token
+    Required permissions: Message Content Intent (for reading messages)
+    Unlocks: Discord bot (DMs, guilds, threads, slash commands, voice)
+    Docs   : https://docs.openclaw.ai/channels/discord
+
+--- Slack ---
+  SLACK_BOT_TOKEN=xoxb-...   (Bot User OAuth Token)
+  SLACK_APP_TOKEN=xapp-...   (App-Level Token, for Socket Mode)
+    Where  : https://api.slack.com/apps → Your App → OAuth & Permissions
+    Required scopes: app_mentions:read, channels:history, chat:write, im:history,
+                     im:read, im:write, mpim:history, mpim:read, users:read
+    Unlocks: Slack bot (DMs, channels, slash commands, Socket Mode streaming)
+    Docs   : https://docs.openclaw.ai/channels/slack
+
+--- WhatsApp (Web) ---
+  No API key — uses WhatsApp Web protocol via QR pairing.
+  Set via: openclaw.json: { "channels": { "whatsapp": { "enabled": true } } }
+  Requires: A WhatsApp account (personal or Business API)
+  Unlocks : WhatsApp DMs and groups
+  Docs    : https://docs.openclaw.ai/channels/whatsapp
+
+--- Signal ---
+  No API key — links to an existing Signal account.
+  Set via: `openclaw channels login signal` (interactive wizard)
+  Requires: Signal account on a device you control
+  Unlocks : Encrypted DMs and groups
+  Docs    : https://docs.openclaw.ai/channels/signal
+
+--- iMessage (via BlueBubbles) ---
+  Requires: BlueBubbles server running on a Mac with iMessage
+  Config  : { "channels": { "bluebubbles": { "serverUrl": "...", "serverPassword": "..." } } }
+  Where   : https://bluebubbles.app
+  Unlocks : iMessage DMs and groups
+
+--- Matrix ---
+  Config  : { "channels": { "matrix": { "homeserver": "...", "userId": "@bot:matrix.org",
+              "accessToken": "..." } } }
+  Where   : https://matrix.org or your own Synapse instance
+  Unlocks : Decentralized chat (Element, FluffyChat, etc.)
+  Docs    : https://docs.openclaw.ai/channels/matrix
+
+--- Mattermost ---
+  MATTERMOST_BOT_TOKEN=...
+  MATTERMOST_URL=https://chat.example.com
+    Where  : Your Mattermost instance → System Console → Integrations → Bot Accounts
+    Unlocks: Mattermost DMs and channels
+    Docs   : https://docs.openclaw.ai/channels/mattermost
+
+--- Microsoft Teams ---
+  Config  : { "channels": { "msteams": { "accounts": [{ "appId": "...",
+              "appPassword": "...", "tenantId": "..." }] } } }
+  Where   : https://portal.azure.com → Azure AD → App Registrations → New Registration
+            Then: Azure Bot Service → Configure Teams Channel
+  Unlocks : Teams DMs and channels (enterprise)
+  Docs    : https://docs.openclaw.ai/channels/msteams
+
+--- Google Chat ---
+  Config  : Service account JSON (via openclaw.json or file reference)
+  Where   : https://console.cloud.google.com → IAM → Service Accounts
+            Enable Chat API, add bot to Google Workspace
+  Unlocks : Google Chat DMs and spaces
+  Docs    : https://docs.openclaw.ai/channels/googlechat
+
+--- Feishu (Lark / ByteDance) ---
+  Config  : { "channels": { "feishu": { "appId": "...", "appSecret": "..." } } }
+  Where   : https://open.feishu.cn/app
+  Unlocks : Feishu/Lark DMs and groups (Chinese enterprise messaging)
+  Docs    : https://docs.openclaw.ai/channels/feishu
+
+--- Line ---
+  Config  : Line channel token + user ID
+  Where   : https://developers.line.biz/en/
+  Unlocks : Line DMs and group chats (popular in Asia)
+  Docs    : https://docs.openclaw.ai/channels/line
+
+--- Zalo ---
+  ZALO_BOT_TOKEN=...
+    Where  : https://developers.zalo.me/
+    Unlocks: Zalo Official Account messaging (Vietnam)
+    Docs   : https://docs.openclaw.ai/channels/zalo
+
+--- IRC ---
+  Config  : { "channels": { "irc": { "hostname": "irc.libera.chat", "port": 6697,
+              "nick": "mybot", "password": "..." } } }
+  Unlocks : IRC channels and private messages
+  Docs    : https://docs.openclaw.ai/channels/irc
+
+--- Nextcloud Talk ---
+  Config  : Nextcloud URL + username + password
+  Where   : Your Nextcloud instance
+  Unlocks : Nextcloud Talk messaging
+  Docs    : https://docs.openclaw.ai/channels/nextcloud-talk
+
+--- Synology Chat ---
+  Config  : Webhook URL from Synology Chat admin
+  Where   : Your Synology NAS → Synology Chat → Integrations
+  Unlocks : Synology Chat bot integration
+
+--- Nostr ---
+  Config  : Optional private key; relay list
+  Where   : Generate keypair locally: `nostr-keygen` or any Nostr client
+  Unlocks : Decentralized Nostr protocol messaging
+  Docs    : https://docs.openclaw.ai/channels/nostr
+
+--- Twitch ---
+  OPENCLAW_TWITCH_ACCESS_TOKEN=oauth:...
+  Config  : clientId, username, channel(s)
+  Where   : https://twitchtokengenerator.com OR https://dev.twitch.tv/console
+  Unlocks : Twitch chat (read and write)
+  Docs    : https://docs.openclaw.ai/channels/twitch
+
+--- Tlon (Urbit) ---
+  Config  : Urbit ship address + ~code (experimental)
+  Where   : Urbit planet (https://urbit.org)
+  Unlocks : Urbit/Tlon Groups messaging (experimental)
+  Docs    : https://docs.openclaw.ai/channels/tlon
+
+===============================================================================
+SECTION 4 — TOOLS & SKILLS
+===============================================================================
+
+--- Brave Search ---
+  BRAVE_API_KEY=...
+    Where  : https://brave.com/search/api/
+    Unlocks: web_search tool (real-time web search)
+    Note   : Perplexity can be used as an alternative (see below)
+
+--- Perplexity ---
+  PERPLEXITY_API_KEY=pplx-...
+    Where  : https://www.perplexity.ai/settings/api
+    Unlocks: web_search tool (alternative to Brave)
+
+--- FireCrawl ---
+  FIRECRAWL_API_KEY=fc-...
+    Where  : https://firecrawl.dev
+    Unlocks: Advanced web scraping (fetch_page tool with clean Markdown output)
+
+--- ElevenLabs (Text-to-Speech) ---
+  ELEVENLABS_API_KEY=...
+    Alternative: XI_API_KEY=... (same API key, different env alias)
+    Where  : https://elevenlabs.io → Profile → API Keys
+    Unlocks: High-quality voice synthesis (tts tool), voice cloning
+
+--- Deepgram (Speech-to-Text) ---
+  DEEPGRAM_API_KEY=...
+    Where  : https://console.deepgram.com
+    Unlocks: Audio transcription (speech-to-text), live STT for voice channels
+
+===============================================================================
+SECTION 5 — VOICE CALLING (extensions/voice-call plugin)
+===============================================================================
+
+The voice-call extension supports three telephony providers. Configure one:
+
+--- Twilio ---
+  TWILIO_ACCOUNT_SID=ACxxxxxx...
+  TWILIO_AUTH_TOKEN=...
+  Config  : phone number, webhookUrl (public HTTPS endpoint)
+  Where   : https://www.twilio.com/console
+  Unlocks : Inbound/outbound voice calls to any phone number
+
+--- Telnyx ---
+  TELNYX_API_KEY=...
+  TELNYX_CONNECTION_ID=...   (from Telnyx Call Control app)
+  TELNYX_PUBLIC_KEY=...      (for webhook signature verification)
+  Where   : https://portal.telnyx.com/#/app/api-keys
+  Unlocks : Voice calls via Telnyx (lower cost alternative to Twilio)
+
+--- Plivo ---
+  PLIVO_AUTH_ID=MAxxxxxx...
+  PLIVO_AUTH_TOKEN=...
+  Where   : https://console.plivo.com/dashboard/
+  Unlocks : Voice calls via Plivo
+
+--- ngrok (tunnel for webhooks, optional) ---
+  NGROK_AUTHTOKEN=...
+  NGROK_DOMAIN=...   (optional — custom domain, paid plan)
+  Where   : https://dashboard.ngrok.com/get-started/your-authtoken
+  Unlocks : Secure tunnel so telephony providers can reach your local gateway
+
+===============================================================================
+SECTION 6 — CI/CD (GitHub Actions — release workflow)
+===============================================================================
+
+These secrets are only needed for the release workflow
+(.github/workflows/release.yml) to build production artifacts.
+Add them in: GitHub repo → Settings → Secrets and variables → Actions
+
+--- Android release signing ---
+  ANDROID_KEYSTORE_BASE64
+    Content : Base64-encoded JKS/PKCS12 keystore file
+    Generate:
+      keytool -genkey -v -keystore release.jks -alias openclaw \
+        -keyalg RSA -keysize 4096 -validity 10000
+      base64 -i release.jks | tr -d '\n'  # Linux/macOS
+      [Convert]::ToBase64String([IO.File]::ReadAllBytes("release.jks"))  # PowerShell
+
+  ANDROID_STORE_PASSWORD
+    Content : Password used when creating the keystore (-storepass)
+
+  ANDROID_KEY_ALIAS
+    Content : Key alias (e.g. "openclaw") used with -alias
+
+  ANDROID_KEY_PASSWORD
+    Content : Key password used when creating the key (-keypass)
+
+Note: Without these four secrets, assembleRelease will still run but the APK
+will not be signed and cannot be published to Google Play.
+
+===============================================================================
+SECTION 7 — OPTIONAL INFRASTRUCTURE
+===============================================================================
+
+--- GitHub App (for CI automation workflows) ---
+  GH_APP_PRIVATE_KEY
+  GH_APP_PRIVATE_KEY_FALLBACK
+    Where  : GitHub → Developer Settings → GitHub Apps → Your App → Generate key
+    Used by: stale.yml, labeler.yml, auto-response.yml CI workflows
+
+--- OPENCLAW_LOAD_SHELL_ENV ---
+  Not a secret; set to "1" to import missing keys from your login shell profile.
+  OPENCLAW_LOAD_SHELL_ENV=1
+  OPENCLAW_SHELL_ENV_TIMEOUT_MS=15000  (optional, default 15 s)
+
+===============================================================================
+NOTES ON SERVER-ONLY HANDLING
+===============================================================================
+
+- All API keys and tokens are loaded server-side only (Node.js process env).
+- The web control UI never receives raw credential values from the server.
+- The `openclaw doctor` command diagnoses common misconfiguration issues.
+- The `openclaw channels status --probe` command verifies channel connectivity.
+- The `openclaw onboard` command provides an interactive wizard for first-time
+  setup of AI providers and optional channel integrations.
+
+For full documentation see: https://docs.openclaw.ai

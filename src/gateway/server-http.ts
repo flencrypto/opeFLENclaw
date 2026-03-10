@@ -62,6 +62,7 @@ import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
 import { GATEWAY_CLIENT_MODES, normalizeGatewayClientMode } from "./protocol/client-info.js";
 import { isProtectedPluginRoutePath } from "./security-path.js";
 import type { GatewayWsClient } from "./server/ws-types.js";
+import { handleSetupStatusRequest } from "./setup-status-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
@@ -511,6 +512,10 @@ export function createGatewayHttpServer(opts: {
         req.url = scopedCanvas.rewrittenUrl;
       }
       const requestPath = new URL(req.url ?? "/", "http://localhost").pathname;
+      // Setup status endpoint — intentionally unauthenticated (exposes no secrets).
+      if (handleSetupStatusRequest(req, res)) {
+        return;
+      }
       if (await handleHooksRequest(req, res)) {
         return;
       }

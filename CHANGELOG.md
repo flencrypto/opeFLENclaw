@@ -2,6 +2,14 @@
 
 Docs: https://docs.openclaw.ai
 
+## Unreleased
+
+### Changes
+
+- CI/Release: add production-ready Windows installer (`.exe`) via NSIS + portable Node.js 22, and signed Android release APK via Gradle `signingConfigs`; both artifacts are attached to GitHub releases on `v*` tags. Android signing is env-var driven and a no-op when secrets are absent (debug builds unaffected).
+- Infra/Setup: add `GET /api/setup/status` gateway endpoint that returns which integrations are configured (no secrets exposed); add `src/integrations/requirements.ts` — a single-source-of-truth requirements registry documenting all AI providers, channels, tools, and voice integrations with required env vars, setup steps, and official links.
+- Docs: add `REQUIRED_KEYS_AND_LOGINS.txt` at repo root — a comprehensive plaintext credential reference for all 40+ integrations (AI providers, channels, tools, voice, CI/CD) with exact env var names and where to obtain each credential.
+
 ## 2026.2.27
 
 ### Changes
